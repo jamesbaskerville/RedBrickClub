@@ -7,7 +7,6 @@ import secrets
         Attributes:
             id:             agent identifier
             rep:            reputation score
-            item:           item belonging to the user (if it exists)
 
             nitems:         the total number of items in a round
             true_prefs:     true preferences of this agent
@@ -15,11 +14,9 @@ import secrets
 
 '''
 class Agent:
-    def __init__(self):
-        # TODO some sort of check against existing identities to prevent
-        # sybil or whitewashing attacks
+    def __init__(self, agent_id):
         self.rep = 1.0
-        self.item = None
+        self.id = agent_id
 
     def init_preferences(self, prefs):
         self.true_prefs = prefs
