@@ -36,6 +36,9 @@ class Agent:
                 self.pref_index < len(self.rep_prefs)):
             self.pref_index += 1
 
+    def get_top_pref_index(self):
+        return self.pref_index
+
     def truncate(self, reported = True):
         try:
             if reported:
