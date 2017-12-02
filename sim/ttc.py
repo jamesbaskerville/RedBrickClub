@@ -66,8 +66,9 @@ def gen_prefs(n, k):
         assert k <= n
     except AssertionError:
         raise ValueError("Prefs should have max length of n")
+    # TODO this is wrong -- should still be in the same order just with parts missing...
     return random.shuffle(range(n)), random.sample(range(n), k)
 
 if __name__ == '__main__':
-    res = ttc(1000, 1.0, seed = 9, debug=False)
+    res = ttc(10000, 0.25, seed = 9, debug=False)
     print res
