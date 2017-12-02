@@ -1,5 +1,3 @@
-import secrets
-
 '''
     Agent:
         A participant in the item exchange simulation.
@@ -8,7 +6,6 @@ import secrets
             id:             agent identifier
             rep:            reputation score
 
-            nitems:         the total number of items in a round
             true_prefs:     true preferences of this agent
             rep_prefs:      reported preferences of this agent
 
@@ -18,18 +15,35 @@ class Agent:
         self.rep = 1.0
         self.id = agent_id
 
-    def init_preferences(self, prefs):
-        self.true_prefs = prefs
-        self.rep_prefs = prefs
+    def init_preferences(self, available, true_prefs, reported_prefs = None):
+        self.true_prefs = true_prefs
+        self.rep_prefs = reported_prefs if reported_prefs else true_prefs
+        # pref_index is used for "pointing" at reported preferences
+        self.pref_index = 0
+        self.update_top_pref(available)
 
     def report(self):
         return self.rep_prefs
 
+    def get_top_pref(self):
+        if self.pref_index < len(self.rep_prefs):
+            return self.rep_prefs[self.pref_index]
+        else:
+            return self.id
+
+    def update_top_pref(self, available):
+        while ( self.get_top_pref() not in available and
+                self.pref_index < len(self.rep_prefs)):
+            self.pref_index += 1
+
     def truncate(self, reported = True):
         try:
             if reported:
-                assert item in self.true_prefs
+                assert self.id in self.true_prefs
             else:
-                assert item in self.rep_prefs
+                assert self.id in self.rep_prefs
         except AssertionError:
             raise ValueError("Prefs must be complete")
+
+    def __str__(self):
+        return "Agent {}, rep: {}".format(self.id, self.rep)
