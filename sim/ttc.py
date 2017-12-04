@@ -140,7 +140,7 @@ def gen_prefs(n, k):
 
 if __name__ == '__main__':
     configure_logging('warning')
-    res = run(1000, 0.90, seed = 234, prefs='correlated')
+    res = run(10, 1.0, seed = 234, prefs='correlated')
     print "items:\n{}".format(res[0])
     print "outcomes:\n{}".format(res[1])
     print "rounds:\n{}".format(res[2])
