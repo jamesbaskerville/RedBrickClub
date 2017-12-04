@@ -1,9 +1,5 @@
 import ttc
 
-# do parameter sweeps:
-# number of agents = 1000
-# proportion of rankings range from 0.1 to 1.0 in 0.1 increments
-# anything else?
 props = []
 items = []
 ranks = []
@@ -14,7 +10,7 @@ ttc.configure_logging('warning')
 # Effect of proportion on ranking change, liquidity, # rounds
 for prop in xrange(5, 101, 5):
     #print "Calculating proportion {}...".format(prop/100.0)
-    res = ttc.start(1000, prop/100.0, seed = 234, prefs='correlated', buckets=5)
+    res = ttc.start(1000, prop/100.0, seed = 234, prefs='correlated', buckets=1)
     props.append(prop/100.0)
     items.append(res[0])
     ranks.append(res[1])

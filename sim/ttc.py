@@ -75,8 +75,6 @@ def run(available_agents, agents, n):
                 stack.append(top_pref)
                 top_pref = agents[top_pref].get_top_pref()
 
-            print stack, top_pref
-
             # there's a cycle
             if top_pref in stack:
                 cycle = stack[stack.index(top_pref):] + [top_pref]
@@ -167,7 +165,7 @@ def gen_prefs(n, k):
 
 if __name__ == '__main__':
     configure_logging('info')
-    res = start(10, 1.0, seed=234, prefs='correlated', buckets=1)
+    res = start(1000, 1.0, seed=234, prefs='correlated', buckets=1)
     print "items: {}".format(res[0])
     print "outcomes: {}".format(res[1])
     print "rounds: {}".format(res[2])
