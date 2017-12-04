@@ -15,9 +15,9 @@ class Agent:
         self.rep = 1.0
         self.id = agent_id
 
-    def init_preferences(self, available, true_prefs, reported_prefs = None):
+    def init_preferences(self, available, true_prefs, reported_prefs):
         self.true_prefs = true_prefs
-        self.rep_prefs = reported_prefs if reported_prefs else true_prefs
+        self.rep_prefs = reported_prefs
         # pref_index is used for "pointing" at reported preferences
         self.pref_index = 0
         self.update_top_pref(available)
