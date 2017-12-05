@@ -4,13 +4,13 @@ import random
 import logging
 import sys
 
-def start(n, report_prop, seed=None, prefs='correlated', buckets=1):
+def start(n, report_prop, seed=None, prefs='correlated', nbuckets=1):
     logging.info("\nSTART")
     np.random.seed(seed)
 
     agents = []
     k = int(report_prop * n)
-    bucket_sz = int(n / buckets)
+    bucket_sz = int(n / nbuckets)
     available_agents = set(np.arange(n))
 
     logging.info("Generating normal preference order distributions...")
@@ -33,7 +33,7 @@ def start(n, report_prop, seed=None, prefs='correlated', buckets=1):
     rounds = 0
 
     logging.info("Running TTC...")
-    for bucket in xrange(buckets):
+    for bucket in xrange(nbuckets):
         logging.info("  Bucket {}".format(bucket))
         start = bucket * bucket_sz
         end = min((bucket + 1) * bucket_sz, n)
@@ -47,7 +47,7 @@ def start(n, report_prop, seed=None, prefs='correlated', buckets=1):
         rounds += bucket_rounds
 
     logging.info("END\n")
-    return item_assignment, get_pref_outcomes(agents, n), rounds
+    return item_assignment, get_pref_outcomes(agents, n), rounds, seed, n, '%.2f' % report_prop, prefs, nbuckets
 
 def run(available_agents, agents, n):
     item_assignment = np.empty(n, dtype=int)
@@ -85,7 +85,6 @@ def run(available_agents, agents, n):
                 available_agents -= set(cycle)
 
             unvisited_agents = available_agents - visited
-
 
     return item_assignment, rounds
 
@@ -165,7 +164,7 @@ def gen_prefs(n, k):
 
 if __name__ == '__main__':
     configure_logging('info')
-    res = start(1000, 1.0, seed=234, prefs='correlated', buckets=1)
+    res = start(1000, 1.0, seed=234, prefs='correlated', nbuckets=1)
     print "items: {}".format(res[0])
     print "outcomes: {}".format(res[1])
     print "rounds: {}".format(res[2])
