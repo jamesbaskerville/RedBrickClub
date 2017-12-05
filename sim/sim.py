@@ -3,7 +3,7 @@ from prettytable import PrettyTable
 from tabulate import tabulate
 import pandas as pd
 
-def run(seed, from_file=False):
+def run(seed=None, from_file=False):
     # t = init_table()
     data = []
 
@@ -44,7 +44,8 @@ def run(seed, from_file=False):
     if from_file:
         df = load_df()
 
-    df = df.append(create_df(data))
+    df2 = create_df(data)
+    df = df.append(df2)
 
     # print_df(df)
     save_df(df)
@@ -54,7 +55,7 @@ def compute_outcome(ctrl_out, out):
     liquidity = ttc.compute_liquidity(out[0])
     neg, pos = ttc.compare_outcomes(ctrl_out[1], out[1])
     nrounds = out[2]
-    return map(str, out[3:]) + ['+{} / -{}'.format(pos, neg), str(liquidity), str(nrounds)]
+    return map(str, out[3:]) + [str(pos), str(neg), str(liquidity), str(nrounds)]
 
 def record_outcome(data, ctrl_out, out):
     res = compute_outcome(ctrl_out, out)
@@ -65,14 +66,14 @@ def load_df(csv_file='results.csv'):
     return pd.read_csv(csv_file)
 
 def save_df(df, csv_file='results.csv'):
-    df.to_csv(csv_file)
+    df.to_csv(csv_file, index=False)
 
 def create_df(data):
-    return pd.DataFrame(data, columns=['Seed', 'n', 'Report Prop', 'Pref Dist Type', '# Buckets', 'Pos/Neg Effect', 'Liquidity', '# Rounds'])
+    return pd.DataFrame(data, columns=['Seed', 'n', 'Report Prop', 'Pref Dist Type', '# Buckets', 'Pos Effect', 'Neg Effect', 'Liquidity', '# Rounds'])
 
 def print_df(df):
     print tabulate(df, headers='keys', tablefmt='psql')
 
 if __name__ == '__main__':
     ttc.configure_logging('warning')
-    run(2592, from_file=False)
+    run(seed=53608, from_file=True)
