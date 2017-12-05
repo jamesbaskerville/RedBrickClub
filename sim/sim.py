@@ -1,26 +1,78 @@
 import ttc
+from prettytable import PrettyTable
+from tabulate import tabulate
+import pandas as pd
 
-# do parameter sweeps:
-# number of agents = 1000
-# proportion of rankings range from 0.1 to 1.0 in 0.1 increments
-# anything else?
-ranks = []
-rounds = []
+def run(seed, from_file=False):
+    # t = init_table()
+    data = []
 
-ttc.configure_logging('warning')
-for prop in xrange(5, 101, 5):
-    #print "Calculating proportion {}...".format(prop/100.0)
-    res = ttc.run(1000, prop/100.0, seed = 234, prefs='uniform')
-    ranks.append((prop/10.0, res[1]))
-    rounds.append(res[2])
+    ctrl_out = ttc.start(1000, 1.0, seed=seed, prefs='correlated', nbuckets=1)
+    record_outcome(data, ctrl_out, ctrl_out)
 
-ttc_out = ranks[len(ranks) - 1][1]
+    # # Test uniform preferences
+    uni_out = ttc.start(1000, 1.0, seed=seed, prefs='uniform', nbuckets=1)
+    record_outcome(data, ctrl_out, uni_out)
 
-print "Results (pos/neg effects vs. TTC outcome)"
-print "-----------------------------------------"
-for i, (prop, out) in enumerate(ranks):
-    neg, pos = ttc.compare_outcomes(ttc_out, out)
-    print "{}%: (+{}, -{}), net difference: {}, rounds: {}".format(int(prop * 10),
-                                                       pos,
-                                                       neg,
-                                                       pos - neg, rounds[i])
+    # # Test effect of report proportion
+    for prop in xrange(95, 1, -5):
+        out = ttc.start(1000, prop/100.0, seed=seed, prefs='correlated', nbuckets=1)
+        record_outcome(data, ctrl_out, out)
+
+    # # Test effect of report proportion (uniform)
+    for prop in xrange(95, 1, -5):
+        out = ttc.start(1000, prop/100.0, seed=seed, prefs='uniform', nbuckets=1)
+        record_outcome(data, ctrl_out, out)
+
+    # Test effect of bucketing
+    for nbuckets in xrange(5, 101, 5):
+        out = ttc.start(1000, 1.0, seed=seed, prefs='correlated', nbuckets=nbuckets)
+        record_outcome(data, ctrl_out, out)
+    for nbuckets in xrange(125, 1001, 25):
+        out = ttc.start(1000, 1.0, seed=seed, prefs='correlated', nbuckets=nbuckets)
+        record_outcome(data, ctrl_out, out)
+
+    # Test effect of bucketing (uniform)
+    for nbuckets in xrange(5, 101, 5):
+        out = ttc.start(1000, 1.0, seed=seed, prefs='uniform', nbuckets=nbuckets)
+        record_outcome(data, ctrl_out, out)
+    for nbuckets in xrange(125, 1001, 25):
+        out = ttc.start(1000, 1.0, seed=seed, prefs='uniform', nbuckets=nbuckets)
+        record_outcome(data, ctrl_out, out)
+
+    df = pd.DataFrame()
+    if from_file:
+        df = load_df()
+
+    df = df.append(create_df(data))
+
+    # print_df(df)
+    save_df(df)
+    print "Done!"
+
+def compute_outcome(ctrl_out, out):
+    liquidity = ttc.compute_liquidity(out[0])
+    neg, pos = ttc.compare_outcomes(ctrl_out[1], out[1])
+    nrounds = out[2]
+    return map(str, out[3:]) + ['+{} / -{}'.format(pos, neg), str(liquidity), str(nrounds)]
+
+def record_outcome(data, ctrl_out, out):
+    res = compute_outcome(ctrl_out, out)
+    data.append(res)
+    return data
+
+def load_df(csv_file='results.csv'):
+    return pd.read_csv(csv_file)
+
+def save_df(df, csv_file='results.csv'):
+    df.to_csv(csv_file)
+
+def create_df(data):
+    return pd.DataFrame(data, columns=['Seed', 'n', 'Report Prop', 'Pref Dist Type', '# Buckets', 'Pos/Neg Effect', 'Liquidity', '# Rounds'])
+
+def print_df(df):
+    print tabulate(df, headers='keys', tablefmt='psql')
+
+if __name__ == '__main__':
+    ttc.configure_logging('warning')
+    run(2592, from_file=False)

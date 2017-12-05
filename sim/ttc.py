@@ -4,19 +4,20 @@ import random
 import logging
 import sys
 
-def run(n, report_prop, seed=None, prefs='correlated'):
-    #logging.info("\nBeginning Run of TTC Algorithm")
+def start(n, report_prop, seed=None, prefs='correlated', nbuckets=1):
+    logging.info("\nSTART")
     np.random.seed(seed)
 
     agents = []
     k = int(report_prop * n)
+    bucket_sz = int(n / nbuckets)
     available_agents = set(np.arange(n))
 
-    #logging.info("Generating normal preference order distributions...")
+    logging.info("Generating normal preference order distributions...")
     dists = gen_pref_dists(n)
 
-    #logging.info("Assigning initial true and reported preferences...")
-    sample_pref_dists(n, n-2, dists)
+    logging.info("Assigning initial true and reported preferences...")
+    sample_pref_dists(n, k, dists)
     for i in xrange(n):
         new_agent = Agent(i)
 
@@ -25,52 +26,67 @@ def run(n, report_prop, seed=None, prefs='correlated'):
         else:
             true_prefs, rep_prefs = sample_pref_dists(n, k, dists)
 
-        #logging.debug("{}; prefs: {}, {}".format(new_agent, true_prefs, rep_prefs))
         new_agent.init_preferences(available_agents, true_prefs, rep_prefs)
         agents.append(new_agent)
 
-    assigned_items = np.empty(n, dtype=int)
+    item_assignment = np.empty(n, dtype=int)
+    rounds = 0
 
-    #logging.info("Running TTC...")
+    logging.info("Running TTC...")
+    for bucket in xrange(nbuckets):
+        logging.info("  Bucket {}".format(bucket))
+        start = bucket * bucket_sz
+        end = min((bucket + 1) * bucket_sz, n)
+        num = end - start
+        available_agents = set(np.arange(start, end))
+        logging.debug("    {} {} {} {}".format(bucket, start, end, num, available_agents))
+        bucket_assign, bucket_rounds = run(available_agents, agents, n)
+        #print bucket_assign
+        np.put(item_assignment, np.arange(start, end), bucket_assign[start:end])
+        #print item_assignment
+        rounds += bucket_rounds
+
+    logging.info("END\n")
+    return item_assignment, get_pref_outcomes(agents, n), rounds, seed, n, '%.2f' % report_prop, prefs, nbuckets
+
+def run(available_agents, agents, n):
+    item_assignment = np.empty(n, dtype=int)
     rounds = 0
     while available_agents:
         rounds += 1
-        #logging.info("Round {}".format(rounds))
+        logging.info("    Round {}".format(rounds))
         # update top preferences ("pointing"/directed edges in graph)
         for a_id in available_agents:
             agents[a_id].update_top_pref(available_agents)
-            #logging.debug("{} ; top_pref: {}".format(agents[a_id], agents[a_id].get_top_pref()))
 
-        # find a cycle
+        # find all cycles
         visited = set()
-        stack = []
+        unvisited_agents = available_agents - visited
+        while unvisited_agents:
+            stack = []
+            a_id = unvisited_agents.pop()
+            visited.add(a_id)
+            stack.append(a_id)
 
-        a_id = available_agents.pop()
-        available_agents.add(a_id)
-        visited.add(a_id)
-        stack.append(a_id)
+            top_pref = agents[a_id].get_top_pref()
 
-        top_pref = agents[a_id].get_top_pref()
-        #logging.debug("starting DFS from agent {}".format(a_id))
-        #logging.debug("stack:{}".format(stack))
+            while top_pref not in visited:
+                visited.add(top_pref)
+                stack.append(top_pref)
+                top_pref = agents[top_pref].get_top_pref()
 
-        while top_pref not in visited:
-            visited.add(top_pref)
-            stack.append(top_pref)
-            top_pref = agents[top_pref].get_top_pref()
-            #logging.debug("stack:{}".format(stack))
+            # there's a cycle
+            if top_pref in stack:
+                cycle = stack[stack.index(top_pref):] + [top_pref]
+                # assign matchings
+                for i in xrange(len(cycle) - 1):
+                    item_assignment[cycle[i]] = cycle[i + 1]
+                # remove cycle from market
+                available_agents -= set(cycle)
 
-        # get cycle
-        cycle = stack[stack.index(top_pref):] + [top_pref]
-        #logging.debug("cycle found: {}".format(cycle))
-        # assign matchings
-        for i in xrange(len(cycle) - 1):
-            assigned_items[cycle[i]] = cycle[i + 1]
-        #logging.debug("updated matchings: {}".format(assigned_items))
-        # remove cycle from market
-        available_agents -= set(cycle)
-        #logging.debug("remaining agents: {}\n".format(available_agents))
-    return assigned_items, get_pref_outcomes(agents, n), rounds
+            unvisited_agents = available_agents - visited
+
+    return item_assignment, rounds
 
 # a list of the result of the algorithm for each agent
 # (e.g. their preference for the item which they were assigned)
@@ -84,7 +100,6 @@ def get_pref_outcomes(agents, n):
 def gen_pref_dists(n):
     means = np.arange(n, dtype = float)
     sdevs = np.random.random(n) * n / 2.0
-    #logging.debug("Pref dist means and SDs:\n{}\n{}".format(means, sdevs))
     return means, sdevs
 
 # sample over item preference order distributions to generate a pref order
@@ -104,7 +119,6 @@ def sample_pref_dists(n, k, (means, sdevs)):
 
     # report preference on k items, keeping order from the true preferences
     rep_prefs = true_prefs[np.sort(np.random.choice(np.arange(n), size=k, replace=False))]
-    ##logging.debug("prefs: {},\n {}".format(true_prefs.flatten().tolist(), rep_prefs.flatten().tolist()))
 
     return true_prefs.flatten().astype(int), rep_prefs.flatten().astype(int)
 
@@ -124,6 +138,17 @@ def compare_outcomes(ttc, other):
     return (len(filter(lambda (t, o): t < o, zip(ttc, other))),
             len(filter(lambda (t, o): t > o, zip(ttc, other))))
 
+# liquidity is defined as the proportion of agents who receive a different item
+def compute_liquidity(item_assignment):
+    n = len(item_assignment)
+    no_change = 0.0
+    it = np.nditer(item_assignment, flags=['f_index'])
+    while not it.finished:
+        if it.index == it[0]:
+            no_change += 1.0
+        it.iternext()
+    return (1.0 - no_change / n)
+
 ### DEPRECATED ###
 
 # generate a uniform random preference order, ranking k out of n items (k <= n)
@@ -135,12 +160,12 @@ def gen_prefs(n, k):
     true_prefs = np.arange(n)
     np.random.shuffle(true_prefs)
     rep_prefs = true_prefs[np.sort(np.random.choice(np.arange(n), size=k, replace=False))]
-    #logging.debug("{} {}".format(true_prefs, rep_prefs))
     return true_prefs.flatten().astype(int), rep_prefs.flatten().astype(int)
 
 if __name__ == '__main__':
-    configure_logging('warning')
-    res = run(1000, 0.90, seed = 234, prefs='correlated')
-    print "items:\n{}".format(res[0])
-    print "outcomes:\n{}".format(res[1])
-    print "rounds:\n{}".format(res[2])
+    configure_logging('info')
+    res = start(1000, 1.0, seed=234, prefs='correlated', nbuckets=1)
+    print "items: {}".format(res[0])
+    print "outcomes: {}".format(res[1])
+    print "rounds: {}".format(res[2])
+    print "liquidity: {}%".format(compute_liquidity(res[0]) * 100)
